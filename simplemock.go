@@ -176,7 +176,7 @@ func (fl FieldList) Validate() error {
 	for i := 0; i < fl.Len(); i++ {
 		field := fl.At(i)
 		fieldName := field.Name()
-		if none := checker[fieldName]; !none {
+		if none := checker[fieldName]; none {
 			return errors.New("there is a field with the same name")
 		}
 	}
