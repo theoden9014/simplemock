@@ -307,7 +307,6 @@ func TestSimpleMock_WriteTo(t *testing.T) {
 		wantW   string
 		wantErr bool
 	}{
-		// TODO: Add test cases.
 		{
 			name:    "",
 			pkgpath: "example.com/util",
@@ -370,26 +369,34 @@ return 0, nil
 				t.Fatal("load package error")
 			}
 			pkg := pkgs[0]
-			pkg2 := loadPackage(pkg)
-			mocks, err := pkg2.Generate()
-			if err != nil {
-				t.Fatal(err)
-			}
-			if len(mocks) != 1 {
-				t.Fatal("you should write 1 interface in test")
-			}
-			mock := mocks[0]
+			for _, f := range pkg.Syntax {
+				err := walk(f, pkg.TypesInfo,  func(iface string, ifaceType *types.Interface, err error) error {
+					if err != nil {
+						t.Fatal(err)
+					}
+					mockname := iface+"Mock"
+					mock, err := NewSimpleMock(mockname, ifaceType)
+					if err != nil {
+						t.Fatal(err)
+					}
 
-			w := &bytes.Buffer{}
-			err = mock.WriteTo(w)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("WriteTo() error = %v, wantErr %v", err, tt.wantErr)
-				return
+					w := &bytes.Buffer{}
+					err = mock.WriteTo(w)
+					if (err != nil) != tt.wantErr {
+						t.Errorf("WriteTo() error = %v, wantErr %v", err, tt.wantErr)
+					}
+					gotW, wantW := w.String(), tt.wantW
+					if diff := cmp.Diff(gotW, wantW); diff != "" {
+						t.Errorf("WriteTo() mismatch (-want +got):\n%s", diff)
+					}
+
+					return nil
+				})
+				if err != nil {
+					t.Fatal(err)
+				}
 			}
-			gotW, wantW := w.String(), tt.wantW
-			if diff := cmp.Diff(gotW, wantW); diff != "" {
-				t.Errorf("WriteTo() mismatch (-want +got):\n%s", diff)
-			}
+
 		})
 	}
 }

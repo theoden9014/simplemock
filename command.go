@@ -16,7 +16,7 @@ type Command struct {
 
 const (
 	StatusOK  int = 0
-	StatusErr     = -1
+	StatusErr int = -1
 )
 
 func (c *Command) Run(args ...string) int {
@@ -53,17 +53,14 @@ func (c *Command) Run(args ...string) int {
 
 	gofile := NewGoFile()
 
-	var pkgName string
-
 	err := load(patterns, func(pkgname string, node ast.Node, info typeInfo, err error) error {
-		if len(conf.pkgname) == 0 {
-			conf.pkgname = pkgname
-		}
 		if err != nil {
 			return err
 		}
-		pkgName = pkgname
-		walk(node, info, func(iface string, ifaceType *types.Interface, err error) error {
+		if len(conf.pkgname) == 0 {
+			conf.pkgname = pkgname
+		}
+		err = walk(node, info, func(iface string, ifaceType *types.Interface, err error) error {
 			if err != nil {
 				return err
 			}
@@ -73,9 +70,8 @@ func (c *Command) Run(args ...string) int {
 				return fmt.Errorf("SimpleMock: %w", err)
 			}
 			return mock.WriteTo(gofile)
-			return nil
 		})
-		return nil
+		return err
 	})
 	if err != nil {
 		c.error(err)
@@ -84,7 +80,7 @@ func (c *Command) Run(args ...string) int {
 
 	gofile.Package = conf.pkgname
 	if err := gofile.Generate(); err != nil {
-		c.errorf("generate source code: $w", err)
+		c.errorf("generate source code: %w", err)
 	}
 	if err := gofile.Format(); err != nil {
 		c.errorf("format source code: %w", err)
@@ -94,7 +90,10 @@ func (c *Command) Run(args ...string) int {
 	}
 
 	if len(conf.outpath) == 0 {
-		io.Copy(conf.output, gofile)
+		if _, err := io.Copy(conf.output, gofile); err != nil {
+			c.errorf("write source code: %w", err)
+			return StatusErr
+		}
 		return StatusOK
 	}
 	f, err := os.OpenFile(conf.outpath,
@@ -103,7 +102,11 @@ func (c *Command) Run(args ...string) int {
 		c.error(err)
 	}
 	defer f.Close()
-	io.Copy(f, gofile)
+
+	if _, err := io.Copy(f, gofile); err != nil {
+		c.errorf("write source code: %w", err)
+		return StatusErr
+	}
 
 	return StatusOK
 }
