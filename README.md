@@ -1,7 +1,7 @@
 # simplemock
 [![Go Report Card](https://goreportcard.com/badge/github.com/theoden9014/simplemock)](https://goreportcard.com/report/github.com/theoden9014/simplemock)
 
-This is a code generator for mock from interfaces.
+This is a code generator for mock from interfaces in Go.
 
 ## Installation
 ```
