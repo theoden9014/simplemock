@@ -16,7 +16,7 @@ type Command struct {
 
 const (
 	StatusOK  int = 0
-	StatusErr     = -1
+	StatusErr int = -1
 )
 
 func (c *Command) Run(args ...string) int {
@@ -60,7 +60,7 @@ func (c *Command) Run(args ...string) int {
 		if len(conf.pkgname) == 0 {
 			conf.pkgname = pkgname
 		}
-		walk(node, info, func(iface string, ifaceType *types.Interface, err error) error {
+		err = walk(node, info, func(iface string, ifaceType *types.Interface, err error) error {
 			if err != nil {
 				return err
 			}
@@ -70,9 +70,8 @@ func (c *Command) Run(args ...string) int {
 				return fmt.Errorf("SimpleMock: %w", err)
 			}
 			return mock.WriteTo(gofile)
-			return nil
 		})
-		return nil
+		return err
 	})
 	if err != nil {
 		c.error(err)
@@ -91,7 +90,10 @@ func (c *Command) Run(args ...string) int {
 	}
 
 	if len(conf.outpath) == 0 {
-		io.Copy(conf.output, gofile)
+		if _, err := io.Copy(conf.output, gofile); err != nil {
+			c.errorf("write source code: %w", err)
+			return StatusErr
+		}
 		return StatusOK
 	}
 	f, err := os.OpenFile(conf.outpath,
@@ -100,7 +102,11 @@ func (c *Command) Run(args ...string) int {
 		c.error(err)
 	}
 	defer f.Close()
-	io.Copy(f, gofile)
+
+	if _, err := io.Copy(f, gofile); err != nil {
+		c.errorf("write source code: %w", err)
+		return StatusErr
+	}
 
 	return StatusOK
 }

@@ -370,7 +370,7 @@ return 0, nil
 			}
 			pkg := pkgs[0]
 			for _, f := range pkg.Syntax {
-				walk(f, pkg.TypesInfo,  func(iface string, ifaceType *types.Interface, err error) error {
+				err := walk(f, pkg.TypesInfo,  func(iface string, ifaceType *types.Interface, err error) error {
 					if err != nil {
 						t.Fatal(err)
 					}
@@ -392,6 +392,9 @@ return 0, nil
 
 					return nil
 				})
+				if err != nil {
+					t.Fatal(err)
+				}
 			}
 
 		})

@@ -88,7 +88,9 @@ func (f *GoFile) Check() error {
 	defer stderr.Close()
 	if err := cmd.Start(); err != nil {
 		buf := bytes.NewBuffer(nil)
-		buf.ReadFrom(stderr)
+		if _, err := buf.ReadFrom(stderr); err != nil {
+			return err
+		}
 		return fmt.Errorf("%s: %w", buf.String(), err)
 	}
 
@@ -122,7 +124,7 @@ func (im *Import) Add(pkg string) {
 }
 
 func (im *Import) AddPackages(imports map[string]*packages.Package) {
-	for name, _ := range imports {
+	for name := range imports {
 		im.Add(name)
 	}
 }

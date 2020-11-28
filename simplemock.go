@@ -27,7 +27,9 @@ func NewSimpleMock(name string, interFace *types.Interface) (*SimpleMock, error)
 		sig := method.Type().(*types.Signature)
 		mockFieldName := method.Name() + `Func`
 		field := NewField(mockFieldName, sig)
-		structGenerator.AddField(field)
+		if err := structGenerator.AddField(field); err != nil {
+			return nil, fmt.Errorf("add field to struct: %w", err)
+		}
 
 		params, err := NewFieldListFromType(sig.Params())
 		if err != nil {
@@ -64,10 +66,14 @@ func (m *SimpleMock) Name() string {
 }
 
 func (m *SimpleMock) WriteTo(w io.Writer) error {
-	m.structGenerator.WriteTo(w)
+	if err := m.structGenerator.WriteTo(w); err != nil {
+		return fmt.Errorf("generate struct: %w", err)
+	}
 	for _, fg := range m.funcGenerators {
 		fmt.Fprintln(w)
-		fg.WriteTo(w)
+		if err := fg.WriteTo(w); err != nil {
+			return fmt.Errorf("generate func: %w", err)
+		}
 	}
 	return nil
 }
@@ -274,7 +280,9 @@ func (fn *Func) WriteTo(w io.Writer) error {
 	fmt.Fprintln(w, `func (`+fn.RecvName()+` `+recvType+`)`+` `+fn.Name()+fn.params.Format(FormatDeclarativeParams)+beforeResultsSpace+fn.results.Format(FormatDeclarativeResults)+` {`)
 
 	if fn.blockWriter != nil {
-		fn.blockWriter(fn, w)
+		if err := fn.blockWriter(fn, w); err != nil {
+			return fmt.Errorf("generator block in func: %w", err)
+		}
 	}
 	fmt.Fprintln(w, `}`)
 
