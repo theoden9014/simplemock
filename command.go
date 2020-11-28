@@ -100,6 +100,7 @@ func (c *Command) Run(args ...string) int {
 		os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		c.error(err)
+		return StatusErr
 	}
 	defer f.Close()
 
