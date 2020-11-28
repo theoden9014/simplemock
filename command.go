@@ -53,16 +53,13 @@ func (c *Command) Run(args ...string) int {
 
 	gofile := NewGoFile()
 
-	var pkgName string
-
 	err := load(patterns, func(pkgname string, node ast.Node, info typeInfo, err error) error {
-		if len(conf.pkgname) == 0 {
-			conf.pkgname = pkgname
-		}
 		if err != nil {
 			return err
 		}
-		pkgName = pkgname
+		if len(conf.pkgname) == 0 {
+			conf.pkgname = pkgname
+		}
 		walk(node, info, func(iface string, ifaceType *types.Interface, err error) error {
 			if err != nil {
 				return err
@@ -84,7 +81,7 @@ func (c *Command) Run(args ...string) int {
 
 	gofile.Package = conf.pkgname
 	if err := gofile.Generate(); err != nil {
-		c.errorf("generate source code: $w", err)
+		c.errorf("generate source code: %w", err)
 	}
 	if err := gofile.Format(); err != nil {
 		c.errorf("format source code: %w", err)
