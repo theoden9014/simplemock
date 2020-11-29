@@ -71,6 +71,7 @@ func TestFunc_WriteTo(t *testing.T) {
 		receiverName  string
 		valueReceiver bool
 		blockWriter   func(*Func, io.Writer) error
+		variadic      bool
 	}
 	tests := []struct {
 		name    string
@@ -162,6 +163,27 @@ return true
 `,
 			wantErr: false,
 		},
+		{
+			name: "variadic argument",
+			fields: fields{
+				name: "Load",
+				params: FieldList{
+					NewField("num", types.Typ[types.Int64]),
+					NewField("patterns", types.NewSlice(types.Typ[types.String]))},
+				results: FieldList{
+					NewField("", types.Typ[types.Bool]),
+					NewField("", types.Typ[types.Bool])},
+				receiver:      NewStruct("User", FieldList{}),
+				receiverName:  "u",
+				valueReceiver: false,
+				blockWriter:   nil,
+				variadic:      true,
+			},
+			wantW: `func (u *User) Load(num int64, patterns ...string) (bool, bool) {
+}
+`,
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -173,6 +195,7 @@ return true
 				receiverName:  tt.fields.receiverName,
 				valueReceiver: tt.fields.valueReceiver,
 				blockWriter:   tt.fields.blockWriter,
+				variadic:      tt.fields.variadic,
 			}
 			w := &bytes.Buffer{}
 			err := fn.WriteTo(w)
@@ -260,6 +283,35 @@ func TestFieldList_Format(t *testing.T) {
 				NewField("arg2", types.Typ[types.String])},
 			args:       args{FormatDeclarativeParams},
 			wantOutput: `(arg1 int64, arg2 string)`,
+		},
+		{
+			name:       "FormatDeclarativeParams (zero)",
+			fl:         FieldList{},
+			args:       args{FormatDeclarativeParamsWithVariadic},
+			wantOutput: `()`,
+		},
+		{
+			name: "FormatDeclarativeParamsWithVariadic (single)",
+			fl: FieldList{
+				NewField("args", types.NewSlice(types.Typ[types.String]))},
+			args:       args{FormatDeclarativeParamsWithVariadic},
+			wantOutput: `(args ...string)`,
+		},
+		{
+			name: "FormatDeclarativeParamsWithVariadic (any)",
+			fl: FieldList{
+				NewField("name", types.Typ[types.String]),
+				NewField("args", types.NewSlice(types.Typ[types.String]))},
+			args:       args{FormatDeclarativeParamsWithVariadic},
+			wantOutput: `(name string, args ...string)`,
+		},
+		{
+			name: "FormatDeclarativeParamsWithVariadic (expected last element is not slice, should handling user.)",
+			fl: FieldList{
+				NewField("names", types.NewSlice(types.Typ[types.String])),
+				NewField("args", types.Typ[types.String])},
+			args:       args{FormatDeclarativeParamsWithVariadic},
+			wantOutput: `(names []string, args string)`,
 		},
 		{
 			name:       "FormatDeclarativeResults (zero)",
@@ -370,11 +422,11 @@ return 0, nil
 			}
 			pkg := pkgs[0]
 			for _, f := range pkg.Syntax {
-				err := walk(f, pkg.TypesInfo,  func(iface string, ifaceType *types.Interface, err error) error {
+				err := walk(f, pkg.TypesInfo, func(iface string, ifaceType *types.Interface, err error) error {
 					if err != nil {
 						t.Fatal(err)
 					}
-					mockname := iface+"Mock"
+					mockname := iface + "Mock"
 					mock, err := NewSimpleMock(mockname, ifaceType)
 					if err != nil {
 						t.Fatal(err)
