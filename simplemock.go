@@ -39,7 +39,7 @@ func NewSimpleMock(name string, interFace *types.Interface) (*SimpleMock, error)
 		if err != nil {
 			return nil, fmt.Errorf("failed to generate fields from types.Signature.Results(): %w", err)
 		}
-		funcGenerator := NewFunc(method.Name(), params, results, structGenerator, "m")
+		funcGenerator := NewFunc(method.Name(), params, results, structGenerator, "m", sig.Variadic())
 		funcGenerator.SetBlockWriter(func(fn *Func, w io.Writer) error {
 			recvName := fn.RecvName()
 			fmt.Fprintln(w, `if `+recvName+`.`+mockFieldName+` != nil {`)
@@ -228,10 +228,11 @@ type Func struct {
 	receiverName  string
 	valueReceiver bool
 	blockWriter   func(*Func, io.Writer) error
+	variadic      bool
 }
 
-func NewFunc(name string, params FieldList, results FieldList, receiver *Struct, receiverName string) *Func {
-	fn := &Func{name: name, params: params, results: results, receiver: receiver, receiverName: receiverName}
+func NewFunc(name string, params FieldList, results FieldList, receiver *Struct, receiverName string, variadic bool) *Func {
+	fn := &Func{name: name, params: params, results: results, receiver: receiver, receiverName: receiverName, variadic: variadic}
 	return fn
 }
 
@@ -277,7 +278,17 @@ func (fn *Func) WriteTo(w io.Writer) error {
 	if fn.results.Len() != 0 {
 		beforeResultsSpace += " "
 	}
-	fmt.Fprintln(w, `func (`+fn.RecvName()+` `+recvType+`)`+` `+fn.Name()+fn.params.Format(FormatDeclarativeParams)+beforeResultsSpace+fn.results.Format(FormatDeclarativeResults)+` {`)
+	if fn.variadic {
+		last := fn.params.At(fn.params.Len() - 1)
+		_, ok := last.Type().(*types.Slice)
+		if !ok {
+			return errors.New("variadic argument was expected but the last element is not sliced")
+		}
+		fn.params.Format(FormatDeclarativeParamsWithVariadic)
+		fmt.Fprintln(w, `func (`+fn.RecvName()+` `+recvType+`)`+` `+fn.Name()+fn.params.Format(FormatDeclarativeParamsWithVariadic)+beforeResultsSpace+fn.results.Format(FormatDeclarativeResults)+` {`)
+	} else {
+		fmt.Fprintln(w, `func (`+fn.RecvName()+` `+recvType+`)`+` `+fn.Name()+fn.params.Format(FormatDeclarativeParams)+beforeResultsSpace+fn.results.Format(FormatDeclarativeResults)+` {`)
+	}
 
 	if fn.blockWriter != nil {
 		if err := fn.blockWriter(fn, w); err != nil {
@@ -301,6 +312,7 @@ func FormatReturnZeroValueResults(fieldList FieldList) (output string) {
 	}
 
 	return output
+
 }
 
 func FormatInputParams(fieldList FieldList) (output string) {
@@ -320,6 +332,7 @@ func FormatInputParams(fieldList FieldList) (output string) {
 
 	output += ")"
 	return output
+
 }
 
 func FormatDeclarativeParams(fieldList FieldList) (output string) {
@@ -334,6 +347,32 @@ func FormatDeclarativeParams(fieldList FieldList) (output string) {
 		output += field.String()
 		if i < fieldList.Len()-1 {
 			output += ", "
+		}
+	}
+
+	output += ")"
+	return output
+
+}
+
+func FormatDeclarativeParamsWithVariadic(fieldList FieldList) (output string) {
+	output += "("
+
+	for i := 0; i < fieldList.Len(); i++ {
+		field := fieldList.At(i)
+		if i < fieldList.Len()-1 {
+			output += field.String()
+			output += ", "
+		} else { // last element
+			last := field
+			slice, ok := last.Type().(*types.Slice)
+			if !ok {
+				output += field.String()
+			} else {
+				elem := slice.Elem()
+				output += field.Name() + " "
+				output += "..." + TypeString(elem)
+			}
 		}
 	}
 
