@@ -264,6 +264,27 @@ func TestFieldList_Format(t *testing.T) {
 			wantOutput: `(arg1, arg2)`,
 		},
 		{
+			name:       "FormatInputParams (zero)",
+			fl:         FieldList{},
+			args:       args{FormatInputParamsWithVariadic},
+			wantOutput: `()`,
+		},
+		{
+			name:       "FormatInputParams (single)",
+			fl:         FieldList{
+				NewField("args", types.NewSlice(types.Typ[types.String]))},
+			args:       args{FormatInputParamsWithVariadic},
+			wantOutput: `(args...)`,
+		},
+		{
+			name:       "FormatInputParams (any)",
+			fl:         FieldList{
+				NewField("arg", types.Typ[types.String]),
+				NewField("args", types.NewSlice(types.Typ[types.String]))},
+			args:       args{FormatInputParamsWithVariadic},
+			wantOutput: `(arg, args...)`,
+		},
+		{
 			name:       "FormatDeclarativeParams (zero)",
 			fl:         FieldList{},
 			args:       args{FormatDeclarativeParams},
@@ -369,12 +390,21 @@ type Buffer interface {
 	io.Writer
 	io.Reader
 	Reset()
+	Load(name string, patterns ...string) error
 }
 `,
 			wantW: `type BufferMock struct {
+LoadFunc func(name string, patterns ...string) error
 ReadFunc func(p []byte) (n int, err error)
 ResetFunc func()
 WriteFunc func(p []byte) (n int, err error)
+}
+
+func (m *BufferMock) Load(name string, patterns ...string) error {
+if m.LoadFunc != nil {
+return m.LoadFunc(name, patterns...)
+}
+return nil
 }
 
 func (m *BufferMock) Read(p []byte) (n int, err error) {

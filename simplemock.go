@@ -44,7 +44,11 @@ func NewSimpleMock(name string, interFace *types.Interface) (*SimpleMock, error)
 			recvName := fn.RecvName()
 			fmt.Fprintln(w, `if `+recvName+`.`+mockFieldName+` != nil {`)
 			params := fn.Params()
-			fmt.Fprintln(w, `return m.`+mockFieldName+params.Format(FormatInputParams))
+			if fn.Variadic() {
+				fmt.Fprintln(w, `return m.`+mockFieldName+params.Format(FormatInputParamsWithVariadic))
+			} else {
+				fmt.Fprintln(w, `return m.`+mockFieldName+params.Format(FormatInputParams))
+			}
 			fmt.Fprintln(w, `}`)
 			fmt.Fprintln(w, results.Format(FormatReturnZeroValueResults))
 			return nil
@@ -264,6 +268,10 @@ func (fn *Func) Results() FieldList {
 	return fn.results
 }
 
+func (fn *Func) Variadic() bool {
+	return fn.variadic
+}
+
 func (fn *Func) WriteTo(w io.Writer) error {
 	// not support non receiver
 	if fn.receiver == nil {
@@ -312,7 +320,6 @@ func FormatReturnZeroValueResults(fieldList FieldList) (output string) {
 	}
 
 	return output
-
 }
 
 func FormatInputParams(fieldList FieldList) (output string) {
@@ -332,7 +339,33 @@ func FormatInputParams(fieldList FieldList) (output string) {
 
 	output += ")"
 	return output
+}
 
+func FormatInputParamsWithVariadic(fieldList FieldList) (output string) {
+	if fieldList.Len() == 0 {
+		return "()"
+	}
+
+	output += "("
+
+	for i := 0; i < fieldList.Len(); i++ {
+		field := fieldList.At(i)
+		if i < fieldList.Len()-1 {
+			output += field.Name()
+			output += ", "
+		} else { // last element
+			last := field
+			_, ok := last.Type().(*types.Slice)
+			if !ok {
+				output += field.Name()
+			} else {
+				output += field.Name() + "..."
+			}
+		}
+	}
+
+	output += ")"
+	return output
 }
 
 func FormatDeclarativeParams(fieldList FieldList) (output string) {
