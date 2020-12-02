@@ -10,7 +10,7 @@ go get -u github.com/theoden9014/simplemock/cmd/simplemockgen
 
 ## Usage
 ```
-Usage: ./simplemock [options...] path1, path2, ...
+Usage: simplemockgen [options...] path1, path2, ...
   -out string
     	output file, default output to stdout
   -pkgname string
