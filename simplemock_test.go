@@ -270,15 +270,15 @@ func TestFieldList_Format(t *testing.T) {
 			wantOutput: `()`,
 		},
 		{
-			name:       "FormatInputParamsWithVariadic (single)",
-			fl:         FieldList{
+			name: "FormatInputParamsWithVariadic (single)",
+			fl: FieldList{
 				NewField("args", types.NewSlice(types.Typ[types.String]))},
 			args:       args{FormatInputParamsWithVariadic},
 			wantOutput: `(args...)`,
 		},
 		{
-			name:       "FormatInputParamsWithVariadic (any)",
-			fl:         FieldList{
+			name: "FormatInputParamsWithVariadic (any)",
+			fl: FieldList{
 				NewField("arg", types.Typ[types.String]),
 				NewField("args", types.NewSlice(types.Typ[types.String]))},
 			args:       args{FormatInputParamsWithVariadic},
